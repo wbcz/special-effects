@@ -33,6 +33,7 @@ ImgLazyLoad.prototype = {
 	constructor: ImgLazyLoad,
 
 	init: function(options) {
+		this._loadImage();
 		this.registerEvent(options)
 	},
 	_throttle: function(fn, delay, mustExeTime) {
@@ -118,7 +119,6 @@ ImgLazyLoad.prototype = {
 	},
 	registerEvent: function(options) {
 		var targetObject = options.container;
-		console.log(targetObject)
 		var delay = options.delay;
 		var mustExeTime = options.mustExeTime;
 		var event = options.event;
