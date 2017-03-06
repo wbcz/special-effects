@@ -10,6 +10,7 @@ class Slider {
 		this.init()
 		this.renderDOM()
 		this.bindDOM()
+		// this.auto()
 	}
 
 	init() {
@@ -23,6 +24,7 @@ class Slider {
 		let dataList = this.dataList
 		let len = dataList.length
 
+		//模拟ajax返回数据生成列表
 		this.outer = document.createElement('ul')
 		for(let i=0; i<len; i++) {
 			let oLi = document.createElement('li')
@@ -122,6 +124,10 @@ class Slider {
 		outer.addEventListener('touchmove', handlerMove)
 		outer.addEventListener('touchend', handlerEnd)
 	}
+
+	// auto() {
+	// 	console.log(this.outer.offsetWidth)
+	// }
 }
 
 window.Slider = Slider
