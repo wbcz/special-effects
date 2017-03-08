@@ -3,20 +3,26 @@
  * 2017-2-19
  */
 class Slider {
+
 	constructor(options) {
 		this.wrap = options.dom
 		this.dataList = options.dataList
+		this.timer = 0
+		this.autoSpeed = 2000
+		this.transitonSpeed = '0.5s'
 
 		this.init()
 		this.renderDOM()
 		this.bindDOM()
-		// this.auto()
+		this.auto()
 	}
 
 	init() {
 		this.radio = window.innerHeight/window.innerWidth
 		this.pageWidth = window.innerWidth
-		this.index = 0
+
+		//注意auto的索引和手动滑动索引值保持统一
+		this.index = 0 
 	}
 
 	renderDOM() {
@@ -24,6 +30,10 @@ class Slider {
 		let dataList = this.dataList
 		let len = dataList.length
 
+		for(let i=0; i<len; i++) {
+			dataList.push(dataList[i])
+		}
+		this.len = len = dataList.length
 		//模拟ajax返回数据生成列表
 		this.outer = document.createElement('ul')
 		for(let i=0; i<len; i++) {
@@ -42,82 +52,55 @@ class Slider {
 		wrap.appendChild(this.outer)
 	}
 
-	goIndex(n) {
-		let index = this.index
-		let oLis = this.outer.getElementsByTagName('li')
-		let len = oLis.length
-		let cIndex
-
-		if(typeof n == 'number') cIndex = index 
-		else cIndex = index + n*1
-
-		if(cIndex > len-1) cIndex = len - 1
-		if(cIndex < 0) cIndex = 0
-
-		this.index = cIndex
-
-		oLis[cIndex].style.webkitTransition ='-webkit-transform 0.2s ease-out'
-		oLis[cIndex-1] && (oLis[cIndex-1].style.webkitTransition = '-webkit-transform 0.2s ease-out')
-		oLis[cIndex+1] && (oLis[cIndex+1].style.webkitTransition = '-webkit-transform 0.2s ease-out')
-		oLis[cIndex].style.webkitTransform = 'translate3d(0, 0, 0)'
-		oLis[cIndex-1] && (oLis[cIndex-1].style.webkitTransform = `translate3d(${-this.pageWidth}px, 0, 0)`)
-		oLis[cIndex+1] && (oLis[cIndex+1].style.webkitTransform = `translate3d(${this.pageWidth}px, 0, 0)`)
-	}
-
 	bindDOM() {
 		let self = this
 		let pageWidth = self.pageWidth
 		let outer = self.outer
 		let len = self.dataList.length
+		let offsetX = 0
+		let startX = 0
+		self.transform(outer,"translateX", 0);
 
 		let handlerStart = (evt) => {
-			self.starTime = new Date() * 1
-			self.startX = evt.touches[0].pageX
-			self.offsetX = 0
+			evt.preventDefault()
+			clearInterval(this.timer)
+			outer.style.transition = 'none';
+			self.startPiont = evt.touches[0].pageX
+
+			//取到第几张图
+			let translateX = self.transform(outer, "translateX")
+			self.index = Math.round(-translateX / self.pageWidth);
+
+			//为了防止在拖动第一张图左边出现空白页面
+			if(self.index == 0) {
+				self.index = len/2
+			}
+
+			//为了防止在拖动第最后一张图右边出现空白页面
+			if(self.index == len-1) {
+				self.index = len/2-1;
+			}
+
+			//设置图片的位置
+			self.transform(outer, "translateX", -self.index * pageWidth);
+
+			//记录每次点击的位置
+			startX = self.transform(outer,"translateX");
 		}
 
 		let handlerMove = (evt) => {
 			evt.preventDefault()
-
-			self.offsetX = evt.targetTouches[0].pageX - self.startX
-			let oLis = outer.getElementsByTagName('li')
-			/**
-			 * 滑动的时候一共可以看到三张图片
-			 * 分别给这三张图片赋值
-			 */
-			let old = self.index -1
-			let next = old + 3
-			for(old; old<next; old++) {
-				let newPos = (old -self.index)*(self.pageWidth) + self.offsetX
-				oLis[old] && (oLis[old].style.webkitTransition = '-webkit-transform 0.2s ease-out')
-				oLis[old] && (oLis[old].style.webkitTransform = `translate3d(${newPos}px, 0, 0)`)
-			}
+			offsetX = evt.targetTouches[0].pageX - self.startPiont 
+			self.transform(outer, 'translateX', startX + offsetX)
 		}
 
 		let handlerEnd = (evt) => {
 			evt.preventDefault()
-
-			let boundary = pageWidth/5
-			let endTime = new Date() * 1
-			let oLis = outer.getElementsByTagName('li')
-
-			if(endTime - self.starTime > 200) {
-				if(self.offsetX >= boundary){
-					self.goIndex('-1')
-				}else if(self.offsetX < 0 && self.offsetX < -boundary){
-					self.goIndex('1')
-				}else{
-					self.goIndex('0')
-				}
-			} else {
-				if(self.offsetX > 60){
-					self.goIndex('-1')
-				}else if(self.offsetX < -60){
-					self.goIndex('+1')
-				}else{
-					self.goIndex('0')
-				}
-			}
+			let translateX = self.transform(outer, "translateX")
+			self.index = Math.round(-translateX/pageWidth)
+			self.transform(outer, 'translateX', -this.index*pageWidth)
+			outer.style.transition = this.transitonSpeed;
+			self.auto()
 		}
 
 		outer.addEventListener('touchstart', handlerStart)
@@ -125,9 +108,63 @@ class Slider {
 		outer.addEventListener('touchend', handlerEnd)
 	}
 
-	// auto() {
-	// 	console.log(this.outer.offsetWidth)
-	// }
+	transform(el, attr, val) {
+		if(!el.transform){
+			el.transform = {};
+		}
+		if(arguments.length > 2) {
+			el.transform[attr] = val
+			let sAttr = ''
+			for(let attr in el.transform) {
+				switch(attr) {
+					case "rotate": 
+					case "skewX": 
+					case "skewY": 
+						sAttr += `${attr}(${el.transform[attr]}deg)`
+						break
+					case "translateX":
+					case "translateY":
+						sAttr += `${attr}(${el.transform[attr]}px)`
+						break
+					case "scaleX":
+					case "scaleY":
+					case "scale":
+						sAttr += `${attr}(${el.transform[attr]})`
+				}
+				el.style.WebkitTransform = el.style.transform = sAttr
+			}
+		} else {
+			val = el.transform[attr]
+			if(typeof val === 'undefined') {
+				if(attr === "scale" || attr === "scaleX" || attr === "scaleY") {
+					val = 1
+				} else {
+					val = 0
+				}
+			}
+			return val
+		}
+	}
+
+	auto() {
+		clearInterval(this.timer);
+		this.timer = setInterval(() => {
+
+			if(this.index >= this.len-1) {
+				this.index = this.len/2 -1
+			}
+
+			this.outer.style.transition = "none";
+			this.transform(this.outer, 'translateX', -this.index * this.pageWidth)
+
+			setTimeout(() => {
+				this.index ++
+				this.outer.style.transition = this.transitonSpeed;
+				this.transform(this.outer, 'translateX', -this.index * this.pageWidth)
+			},40);
+		}, this.autoSpeed)
+	}
+
 }
 
 window.Slider = Slider
